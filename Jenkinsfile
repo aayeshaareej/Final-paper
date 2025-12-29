@@ -20,4 +20,12 @@ echo 'Deploying....'
 }
 }
 }
+post {
+always {
+    echo 'This will always run after all stages'
+}
+failure {
+    echo 'This will run only if the pipeline fails'
+}
+}
 }
