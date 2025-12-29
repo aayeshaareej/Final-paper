@@ -267,16 +267,22 @@
                 <h2>User Registration</h2>
                 <form id="registrationForm" method="POST" action="/register">
                     <label for="fname">First Name:</label>
-                    <input type="text" id="fname" name="fname" placeholder="Enter first name" required>
+                    <input type="text" id="fname" name="fname" placeholder="Enter first name" 
+                           pattern="[a-zA-Z\s\-']{1,100}" title="Only letters, spaces, hyphens, and apostrophes allowed"
+                           maxlength="100" required>
                     
                     <label for="lname">Last Name:</label>
-                    <input type="text" id="lname" name="lname" placeholder="Enter last name" required>
+                    <input type="text" id="lname" name="lname" placeholder="Enter last name" 
+                           pattern="[a-zA-Z\s\-']{1,100}" title="Only letters, spaces, hyphens, and apostrophes allowed"
+                           maxlength="100" required>
                     
                     <label for="email">Email Address:</label>
-                    <input type="email" id="email" name="email" placeholder="your.email@example.com" required>
+                    <input type="email" id="email" name="email" placeholder="your.email@example.com" 
+                           maxlength="100" required>
                     
                     <label for="password">Password:</label>
-                    <input type="password" id="password" name="password" placeholder="Enter password" required>
+                    <input type="password" id="password" name="password" placeholder="Enter password (min 6 characters)" 
+                           minlength="6" maxlength="100" required>
                     
                     <button type="submit">Register</button>
                 </form>
@@ -311,10 +317,15 @@
             <span class="close">&times;</span>
             <h2>Edit User</h2>
             <input type="hidden" id="editSno">
-            <input type="text" id="editFname" placeholder="First Name">
-            <input type="text" id="editLname" placeholder="Last Name">
-            <input type="email" id="editEmail" placeholder="Email">
-            <input type="password" id="editPassword" placeholder="Password">
+            <input type="text" id="editFname" placeholder="First Name" 
+                   pattern="[a-zA-Z\s\-']{1,100}" title="Only letters, spaces, hyphens, and apostrophes allowed"
+                   maxlength="100">
+            <input type="text" id="editLname" placeholder="Last Name" 
+                   pattern="[a-zA-Z\s\-']{1,100}" title="Only letters, spaces, hyphens, and apostrophes allowed"
+                   maxlength="100">
+            <input type="email" id="editEmail" placeholder="Email" maxlength="100">
+            <input type="password" id="editPassword" placeholder="Password (min 6 characters)" 
+                   minlength="6" maxlength="100">
             <div class="modal-buttons">
                 <button class="save-btn" id="saveBtn">Save</button>
                 <button class="cancel-btn" id="cancelBtn">Cancel</button>
@@ -323,40 +334,143 @@
     </div>
     
     <script>
+        // ============ SECURITY UTILITIES ============
+        
+        // Escape HTML to prevent XSS attacks
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        // Validate name field
+        function validateName(name) {
+            if (!name || name.trim().length === 0) {
+                return { valid: false, message: 'Name cannot be empty' };
+            }
+            if (name.length > 100) {
+                return { valid: false, message: 'Name must be less than 100 characters' };
+            }
+            if (!/^[a-zA-Z\s\-']{1,100}$/.test(name)) {
+                return { valid: false, message: 'Name contains invalid characters' };
+            }
+            return { valid: true };
+        }
+        
+        // Validate email field
+        function validateEmail(email) {
+            if (!email || email.trim().length === 0) {
+                return { valid: false, message: 'Email cannot be empty' };
+            }
+            const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+            if (!emailRegex.test(email)) {
+                return { valid: false, message: 'Invalid email format' };
+            }
+            return { valid: true };
+        }
+        
+        // Validate password field
+        function validatePassword(password) {
+            if (!password || password.length === 0) {
+                return { valid: false, message: 'Password cannot be empty' };
+            }
+            if (password.length < 6) {
+                return { valid: false, message: 'Password must be at least 6 characters' };
+            }
+            if (password.length > 100) {
+                return { valid: false, message: 'Password must be less than 100 characters' };
+            }
+            return { valid: true };
+        }
+        
+        // ============ LOAD USERS AND DISPLAY ============
+        
         // Load users on page load
         function loadUsers() {
+            console.log('Loading users...');
             fetch('/api/users')
-                .then(response => response.json())
+                .then(response => {
+                    console.log('Response status:', response.status);
+                    return response.json();
+                })
                 .then(data => {
+                    console.log('Data received:', data);
                     const tableBody = document.getElementById('tableBody');
                     tableBody.innerHTML = '';
                     
-                    if (data.success && data.data.length > 0) {
+                    if (data.success && data.data && data.data.length > 0) {
+                        console.log('Users found:', data.data.length);
                         data.data.forEach(user => {
                             const row = document.createElement('tr');
+                            // Use textContent for cell data to prevent XSS
                             row.innerHTML = `
-                                <td>${user.sno}</td>
-                                <td>${user.fname}</td>
-                                <td>${user.lname}</td>
-                                <td>${user.email}</td>
-                                <td>${user.password}</td>
+                                <td>${escapeHtml(user.sno.toString())}</td>
+                                <td>${escapeHtml(user.fname)}</td>
+                                <td>${escapeHtml(user.lname)}</td>
+                                <td>${escapeHtml(user.email)}</td>
+                                <td>••••••</td>
                                 <td>
-                                    <button class="action-btn edit-btn" onclick="openEditModal(${user.sno}, '${user.fname}', '${user.lname}', '${user.email}', '${user.password}')">Edit</button>
+                                    <button class="action-btn edit-btn" onclick="openEditModal(${user.sno}, '${escapeHtml(user.fname)}', '${escapeHtml(user.lname)}', '${escapeHtml(user.email)}', '')">Edit</button>
                                     <button class="action-btn delete-btn" onclick="deleteUser(${user.sno})">Delete</button>
                                 </td>
                             `;
                             tableBody.appendChild(row);
                         });
                     } else {
+                        console.log('No users found');
                         tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center;">No users found</td></tr>';
                     }
                 })
-                .catch(error => console.error('Error:', error));
+                .catch(error => {
+                    console.error('Fetch Error:', error);
+                    const tableBody = document.getElementById('tableBody');
+                    tableBody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: red;">Error loading users. Check console for details.</td></tr>';
+                });
         }
         
         // Register form submission
         document.getElementById('registrationForm').addEventListener('submit', function(e) {
             e.preventDefault();
+            
+            const fname = document.getElementById('fname').value.trim();
+            const lname = document.getElementById('lname').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const password = document.getElementById('password').value;
+            const messageDiv = document.getElementById('message');
+            
+            // Client-side validation
+            let validation = validateName(fname);
+            if (!validation.valid) {
+                messageDiv.textContent = 'First Name: ' + validation.message;
+                messageDiv.className = 'error';
+                return;
+            }
+            
+            validation = validateName(lname);
+            if (!validation.valid) {
+                messageDiv.textContent = 'Last Name: ' + validation.message;
+                messageDiv.className = 'error';
+                return;
+            }
+            
+            validation = validateEmail(email);
+            if (!validation.valid) {
+                messageDiv.textContent = 'Email: ' + validation.message;
+                messageDiv.className = 'error';
+                return;
+            }
+            
+            validation = validatePassword(password);
+            if (!validation.valid) {
+                messageDiv.textContent = 'Password: ' + validation.message;
+                messageDiv.className = 'error';
+                return;
+            }
             
             const formData = new FormData(this);
             
@@ -366,7 +480,6 @@
             })
             .then(response => response.json())
             .then(data => {
-                const messageDiv = document.getElementById('message');
                 if (data.success) {
                     messageDiv.textContent = data.message;
                     messageDiv.className = 'success';
@@ -414,22 +527,44 @@
         
         document.getElementById('saveBtn').onclick = function() {
             const sno = document.getElementById('editSno').value;
-            const fname = document.getElementById('editFname').value;
-            const lname = document.getElementById('editLname').value;
-            const email = document.getElementById('editEmail').value;
+            const fname = document.getElementById('editFname').value.trim();
+            const lname = document.getElementById('editLname').value.trim();
+            const email = document.getElementById('editEmail').value.trim();
             const password = document.getElementById('editPassword').value;
+            
+            // Client-side validation - only validate if field is filled
+            if (fname && !validateName(fname).valid) {
+                alert('First Name: ' + validateName(fname).message);
+                return;
+            }
+            
+            if (lname && !validateName(lname).valid) {
+                alert('Last Name: ' + validateName(lname).message);
+                return;
+            }
+            
+            if (email && !validateEmail(email).valid) {
+                alert('Email: ' + validateEmail(email).message);
+                return;
+            }
+            
+            if (password && !validatePassword(password).valid) {
+                alert('Password: ' + validatePassword(password).message);
+                return;
+            }
+            
+            const updateData = { sno: sno };
+            if (fname) updateData.fname = fname;
+            if (lname) updateData.lname = lname;
+            if (email) updateData.email = email;
+            if (password) updateData.password = password;
             
             fetch(`/api/users/${sno}`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({
-                    fname: fname,
-                    lname: lname,
-                    email: email,
-                    password: password
-                })
+                body: JSON.stringify(updateData)
             })
             .then(response => response.json())
             .then(data => {
