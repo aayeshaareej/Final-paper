@@ -7,7 +7,7 @@ pipeline {
             steps {
                 git branch: 'main',
                     credentialsId: 'github-creds',
-                    url: 'https://github.com/USERNAME/FLASK-REPO.git'
+                    url: 'https://github.com/aayeshaareej/Final-paper.git'
             }
         }
 
