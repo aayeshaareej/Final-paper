@@ -1,49 +1,43 @@
 pipeline {
     agent any
-    
-    parameters {
-        string(name: 'BUILD_ENV', defaultValue: 'development', description: 'Build environment (development/production)')
-        booleanParam(name: 'ENABLE_TESTS', defaultValue: true, description: 'Enable or disable test stage')
-        choice(name: 'LOG_LEVEL', choices: ['INFO', 'DEBUG', 'ERROR'], description: 'Log level for the build')
-    }
-    
+
     stages {
-        stage('Build') {
+
+        stage('Clone Repository') {
             steps {
-                echo 'Building..'
-                echo "Build Environment: ${params.BUILD_ENV}"
-                echo "Log Level: ${params.LOG_LEVEL}"
-                // Here you can define commands for your build
+                git branch: 'main',
+                    credentialsId: 'github-creds',
+                    url: 'https://github.com/USERNAME/FLASK-REPO.git'
             }
         }
-        
-        stage('Test') {
-            when {
-                expression {
-                    params.exceuteTests
-                }
-            }
+
+        stage('Setup Virtual Environment') {
             steps {
-                echo 'Testing..'
-                echo 'Tests are enabled and running...'
-                // Here you can define commands for your tests
+                sh '''
+                python3 -m venv venv
+                . venv/bin/activate
+                pip install --upgrade pip
+                pip install -r requirements.txt
+                '''
             }
         }
-        
-        stage('Deploy') {
+
+        stage('Run Unit Tests') {
             steps {
-                echo 'Deploying....'
-                // Here you can define commands for your deployment
+                sh '''
+                . venv/bin/activate
+                pytest
+                '''
             }
         }
     }
-    
+
     post {
-        always {
-            echo 'This will always run after all stages'
+        success {
+            echo "✅ All tests passed!"
         }
         failure {
-            echo 'This will run only if the pipeline fails'
+            echo "❌ Tests failed!"
         }
     }
 }
